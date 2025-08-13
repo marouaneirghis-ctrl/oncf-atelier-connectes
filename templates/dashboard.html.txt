@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="my-4">Dashboard Responsable</h1>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-danger h-100">
+            <div class="card-body">
+                <h5 class="card-title">Trains en mauvais état</h5>
+                <p class="display-4">{{ kpi_mauvais }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-dark bg-warning h-100">
+            <div class="card-body">
+                <h5 class="card-title">Trains en état moyen</h5>
+                <p class="display-4">{{ kpi_moyen }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success h-100">
+            <div class="card-body">
+                <h5 class="card-title">Trains en bon état</h5>
+                <p class="display-4">{{ kpi_bon }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Liste des trains</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Train</th>
+                    <th>État santé</th>
+                    <th>Dernière visite</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for train in trains %}
+                <tr>
+                    <td>Z2M-{{ "%03d" % train.id }}</td>
+                    <td>
+                        {% if train.etat_sante < 50 %}
+                            <span class="badge bg-danger">🔴 {{ train.etat_sante }}%</span>
+                        {% elif 50 <= train.etat_sante < 80 %}
+                            <span class="badge bg-warning">🟡 {{ train.etat_sante }}%</span>
+                        {% else %}
+                            <span class="badge bg-success">🟢 {{ train.etat_sante }}%</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ train.derniere_visite }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
