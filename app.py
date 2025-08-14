@@ -1,7 +1,14 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 from datetime import datetime
+
+# Gestion sécurisée de Plotly
+try:
+    import plotly.express as px
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+    st.warning("Certaines visualisations graphiques sont désactivées (Plotly non installé)")
 
 # Configuration de la page
 st.set_page_config(
@@ -20,19 +27,21 @@ class DB:
     @staticmethod
     def get_anomalies(technicien_id=None, statut='tous', urgence='tous'):
         data = [
-            {"id": 1, "train": "Train 1", "composant": "Moteur", "description": "Surchauffe", "criticite": 80, "urgence": "Urgent", "statut": "en_cours"},
-            {"id": 2, "train": "Train 2", "composant": "Freins", "description": "Usure", "criticite": 60, "urgence": "Moyen", "statut": "en_cours"}
+            {"id": 1, "train": "Train 1", "composant": "Moteur", "description": "Surchauffe", 
+             "criticite": 80, "urgence": "Urgent", "statut": "en_cours"},
+            {"id": 2, "train": "Train 2", "composant": "Freins", "description": "Usure", 
+             "criticite": 60, "urgence": "Moyen", "statut": "en_cours"}
         ]
         return data
 
     @staticmethod
     def ajouter_anomalie(train_id, technicien_id, categorie, composant, description, criticite_calculée, urgence):
         # Implémentez votre logique d'ajout ici
-        pass
+        st.success(f"Anomalie enregistrée pour le train {train_id}")
+        return True
 
 # Authentification
 def authenticate(username, password):
-    # À remplacer par votre logique d'authentification réelle
     users = {
         "technicien": {"password": "tech123", "role": "technicien"},
         "responsable": {"password": "resp123", "role": "responsable"}
@@ -71,10 +80,10 @@ else:
     
     if st.session_state.role == "technicien":
         st.sidebar.subheader("Menu Technicien")
-        page = st.sidebar.radio("Navigation", ["Accueil", "Nouvelle Anomalie", "Fiche de Conformité", "Mes Anomalies"])
+        page = st.sidebar.radio("Navigation", ["Accueil", "Nouvelle Anomalie", "Mes Anomalies"])
     else:
         st.sidebar.subheader("Menu Responsable")
-        page = st.sidebar.radio("Navigation", ["Dashboard", "Gestion des Anomalies", "Gestion des Pièces"])
+        page = st.sidebar.radio("Navigation", ["Dashboard", "Gestion des Anomalies"])
 
     # Pages Technicien
     if st.session_state.role == "technicien":
@@ -88,8 +97,7 @@ else:
             
             with st.form("anomalie_form"):
                 trains = DB.get_trains()
-                train_options = {train['id']: train['nom'] for train in trains}
-                train_id = st.selectbox("Train concerné", options=list(train_options.keys()), format_func=lambda x: train_options[x])
+                train_id = st.selectbox("Train concerné", options=trains, format_func=lambda x: x['nom'])
                 
                 col1, col2 = st.columns(2)
                 categorie = col1.selectbox("Catégorie", ["Mécanique", "Electrique", "Système"])
@@ -99,12 +107,11 @@ else:
                 gravite = st.slider("Gravité (1-10)", 1, 10, 5)
                 
                 if st.form_submit_button("Enregistrer"):
-                    # Calcul de criticité (exemple simplifié)
                     criticite = gravite * 10
                     urgence = "Urgent" if criticite >= 70 else ("Moyen" if criticite >= 40 else "Faible")
                     
                     DB.ajouter_anomalie(
-                        train_id=train_id,
+                        train_id=train_id['id'],
                         technicien_id=st.session_state.user_id,
                         categorie=categorie,
                         composant=composant,
@@ -112,45 +119,26 @@ else:
                         criticite_calculée=criticite,
                         urgence=urgence
                     )
-                    st.success("Anomalie enregistrée avec succès")
-
-        elif page == "Fiche de Conformité":
-            st.title("Fiche de conformité d'intervention")
-            # Implémentez similaire à Nouvelle Anomalie
-
-        elif page == "Mes Anomalies":
-            st.title("Mes anomalies en cours")
-            anomalies = DB.get_anomalies(technicien_id=st.session_state.user_id)
-            st.dataframe(pd.DataFrame(anomalies))
 
     # Pages Responsable
     else:
         if page == "Dashboard":
             st.title("Tableau de bord responsable")
             
-            # KPI Cards
             col1, col2, col3 = st.columns(3)
-            col1.metric("Trains en bon état", "15", "2% vs hier")
-            col2.metric("Anomalies urgentes", "3", "-1% vs hier")
-            col3.metric("Interventions aujourd'hui", "7", "3 nouvelles")
+            col1.metric("Trains opérationnels", "24", "+2%")
+            col2.metric("Anomalies actives", "5", "-1")
+            col3.metric("Interventions", "8", "3 nouvelles")
             
-            # Graphiques
-            st.subheader("État du parc matériel")
-            fig = px.pie(values=[15, 5, 3], names=["Bon état", "État moyen", "Mauvais état"])
-            st.plotly_chart(fig, use_container_width=True)
+            if PLOTLY_AVAILABLE:
+                fig = px.pie(values=[18, 5, 1], names=["Opérationnel", "Maintenance", "Hors service"])
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.bar_chart(pd.DataFrame({"Count": [18, 5, 1]}, index=["Opérationnel", "Maintenance", "Hors service"]))
 
         elif page == "Gestion des Anomalies":
             st.title("Gestion des anomalies")
-            
-            col1, col2 = st.columns(2)
-            statut = col1.selectbox("Statut", ["tous", "en_cours", "résolu"])
-            urgence = col2.selectbox("Urgence", ["tous", "Urgent", "Moyen", "Faible"])
-            
-            anomalies = DB.get_anomalies(statut=statut, urgence=urgence)
+            anomalies = DB.get_anomalies()
             st.dataframe(pd.DataFrame(anomalies))
 
-        elif page == "Gestion des Pièces":
-            st.title("Gestion des pièces détachées")
-            # Implémentez selon vos besoins
-
-# Pour lancer l'application : streamlit run app.py
+# Pour lancer : streamlit run app.py
